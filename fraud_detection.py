@@ -35,6 +35,7 @@ if st.button("Predict"):
     }])
 
     prediction = model.predict(input_data)[0]
+    probability = model.predict_proba(input_data)[0][1] * 100
 
     st.subheader(f"Prediction Result: {int(prediction)}")
 
