@@ -203,3 +203,55 @@ if st.button("Predict Fraud Risk", use_container_width=True):
             st.warning(f"• {r}")
     else:
         st.info("No suspicious patterns detected by rule-based analysis")
+
+
+st.divider()
+st.subheader("🧑‍💼 Admin Dashboard – Transaction Monitoring")
+if os.path.exists(LOG_FILE):
+    logs_df = pd.read_csv(LOG_FILE)
+else:
+    st.warning("No transaction logs found yet.")
+    logs_df = None
+
+if logs_df is not None:
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        decision_filter = st.selectbox(
+            "Filter by Final Decision",
+            ["All", "Fraud", "Suspicious", "Safe"]
+        )
+
+    with col2:
+        min_prob = st.slider(
+            "Minimum Fraud Probability (%)",
+            0, 100, 40
+        )
+
+    filtered_df = logs_df.copy()
+
+    if decision_filter != "All":
+        filtered_df = filtered_df[
+            filtered_df["Final Decision"].str.contains(decision_filter, case=False)
+        ]
+
+    filtered_df = filtered_df[
+        filtered_df["Fraud Probability (%)"] >= min_prob
+    ]
+
+    st.markdown("### 📋 Flagged Transactions")
+
+    st.dataframe(
+        filtered_df.sort_values("Fraud Probability (%)", ascending=False),
+        use_container_width=True
+    )
+
+    csv = filtered_df.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        label="⬇️ Download Filtered Report",
+        data=csv,
+        file_name="fraud_monitoring_report.csv",
+        mime="text/csv"
+    )

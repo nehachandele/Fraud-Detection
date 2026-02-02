@@ -1,0 +1,2 @@
+Timestamp,Transaction Type,Amount,Old Balance Sender,New Balance Sender,Old Balance Receiver,New Balance Receiver,Fraud Probability (%),Risk Level,ML Prediction,Final Decision
+2026-02-02 22:34:51,CASH_OUT,50000.0,50000.0,0.0,0.0,50000.0,56.07,Medium Risk,Fraud,Fraud (Rule Override: Balance Drained)
