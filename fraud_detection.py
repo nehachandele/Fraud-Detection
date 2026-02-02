@@ -43,10 +43,34 @@ if st.button("Predict"):
     else:
         risk_level = "High Risk"
 
+    # -------- Fraud Explanation Logic --------
+reasons = []
+
+if amount > 200000:
+    reasons.append("Unusually high transaction amount")
+
+if oldbalanceOrg > 0 and newbalanceOrig == 0:
+    reasons.append("Sender balance was completely drained")
+
+if oldbalanceDest == 0 and newbalanceDest > 0:
+    reasons.append("Receiver account had zero balance before transaction")
+
+if transaction_type in ["TRANSFER", "CASH_OUT"] and amount > 100000:
+    reasons.append("High-risk transaction type with large amount")
+
+if abs((oldbalanceOrg - newbalanceOrig) - amount) > 1:
+    reasons.append("Inconsistent balance change detected")
 
     st.subheader("Prediction Result")
     st.write(f"Fraud Probability: **{probability:.2f}%**")
     st.write(f"Risk Level: **{risk_level}**")
+st.subheader("Why this transaction was flagged")
+
+if reasons:
+    for r in reasons:
+        st.warning(f"• {r}")
+else:
+    st.info("No suspicious patterns detected based on rule analysis")
 
 
     if prediction == 1:
