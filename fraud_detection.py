@@ -36,8 +36,18 @@ if st.button("Predict"):
 
     prediction = model.predict(input_data)[0]
     probability = model.predict_proba(input_data)[0][1] * 100
+    if probability < 30:
+        risk_level = "Low Risk"
+    elif probability < 70:
+        risk_level = "Medium Risk"
+    else:
+        risk_level = "High Risk"
 
-    st.subheader(f"Prediction Result: {int(prediction)}")
+
+    st.subheader("Prediction Result")
+    st.write(f"Fraud Probability: **{probability:.2f}%**")
+    st.write(f"Risk Level: **{risk_level}**")
+
 
     if prediction == 1:
         st.error("⚠️ The transaction can be FRAUD")
