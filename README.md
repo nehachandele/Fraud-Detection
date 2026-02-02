@@ -8,3 +8,5 @@ You can download the dataset from:
 After downloading, place the dataset in the project root directory.
 
 
+
+“This system combines ML-based fraud probability, a rule-based explanation engine, and a user-friendly dashboard to help financial teams take faster decisions.”

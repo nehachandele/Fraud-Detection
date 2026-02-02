@@ -1,8 +1,12 @@
 import streamlit as st
 import pandas as pd
 import joblib
+import os
+from datetime import datetime
 
-# ------------------ PAGE CONFIG ------------------
+# ------------------ CONFIG ------------------
+LOG_FILE = "transaction_logs.csv"
+
 st.set_page_config(
     page_title="Fraud Detection System",
     page_icon="💳",
@@ -39,16 +43,15 @@ st.markdown("""
 
 # ------------------ HEADER ------------------
 st.title("💳 Fraud Detection Prediction System")
-st.caption("AI-powered transaction risk analysis using Machine Learning + Rule Engine")
-
+st.caption("AI-powered transaction analysis using ML + Rule Engine")
 st.divider()
 
 # ------------------ INPUT FORM ------------------
 st.subheader("🧾 Transaction Details")
 
-colA, colB = st.columns(2)
+col1, col2 = st.columns(2)
 
-with colA:
+with col1:
     transaction_type = st.selectbox(
         "Transaction Type",
         ["PAYMENT", "TRANSFER", "CASH_OUT", "DEPOSIT"]
@@ -56,7 +59,7 @@ with colA:
     amount = st.number_input("Transaction Amount (₹)", min_value=0.0, value=1000.0)
     oldbalanceOrg = st.number_input("Sender Old Balance (₹)", min_value=0.0, value=10000.0)
 
-with colB:
+with col2:
     newbalanceOrig = st.number_input("Sender New Balance (₹)", min_value=0.0, value=9000.0)
     oldbalanceDest = st.number_input("Receiver Old Balance (₹)", min_value=0.0, value=0.0)
     newbalanceDest = st.number_input("Receiver New Balance (₹)", min_value=0.0, value=0.0)
@@ -64,7 +67,7 @@ with colB:
 st.divider()
 
 # ------------------ PREDICTION ------------------
-if st.button("🔍 Predict Fraud Risk", use_container_width=True):
+if st.button("Predict Fraud Risk", use_container_width=True):
 
     input_data = pd.DataFrame([{
         "type": transaction_type,
@@ -80,16 +83,16 @@ if st.button("🔍 Predict Fraud Risk", use_container_width=True):
 
     # ------------------ RISK LEVEL ------------------
     if probability >= 80:
-        risk_label = "🚨 High Risk"
+        risk_label = "High Risk"
         risk_class = "high-risk"
     elif probability >= 40:
-        risk_label = "⚠ Medium Risk"
+        risk_label = "Medium Risk"
         risk_class = "medium-risk"
     else:
-        risk_label = "✅ Low Risk"
+        risk_label = "Low Risk"
         risk_class = "low-risk"
 
-    # ------------------ FRAUD EXPLANATION ------------------
+    # ------------------ RULE-BASED EXPLANATION ------------------
     reasons = []
 
     if amount > 200000:
@@ -99,13 +102,50 @@ if st.button("🔍 Predict Fraud Risk", use_container_width=True):
         reasons.append("Sender balance completely drained")
 
     if oldbalanceDest == 0 and newbalanceDest > 0:
-        reasons.append("Receiver account had zero balance before transaction")
+        reasons.append("Receiver had zero balance before transaction")
 
     if transaction_type in ["TRANSFER", "CASH_OUT"] and amount > 100000:
         reasons.append("High-risk transaction type with large amount")
 
     if abs((oldbalanceOrg - newbalanceOrig) - amount) > 1:
         reasons.append("Inconsistent balance change detected")
+
+    # ------------------ STEP 5: HYBRID DECISION ENGINE ------------------
+    if amount > 500000:
+        final_decision = "Fraud (Rule Override: Very High Amount)"
+    elif oldbalanceOrg > 0 and newbalanceOrig == 0:
+        final_decision = "Fraud (Rule Override: Balance Drained)"
+    elif abs((oldbalanceOrg - newbalanceOrig) - amount) > 1:
+        final_decision = "Fraud (Rule Override: Balance Mismatch)"
+    elif probability >= 75:
+        final_decision = "Fraud (ML Prediction)"
+    elif 40 <= probability < 75:
+        final_decision = "Suspicious (Manual Review Required)"
+    else:
+        final_decision = "Safe"
+
+    # ------------------ TRANSACTION LOGGING ------------------
+    log_data = {
+        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "Transaction Type": transaction_type,
+        "Amount": amount,
+        "Old Balance Sender": oldbalanceOrg,
+        "New Balance Sender": newbalanceOrig,
+        "Old Balance Receiver": oldbalanceDest,
+        "New Balance Receiver": newbalanceDest,
+        "Fraud Probability (%)": round(probability, 2),
+        "Risk Level": risk_label,
+        "ML Prediction": "Fraud" if prediction == 1 else "Not Fraud",
+        "Final Decision": final_decision
+    }
+
+    log_df = pd.DataFrame([log_data])
+    if os.path.exists(LOG_FILE):
+        log_df.to_csv(LOG_FILE, mode="a", header=False, index=False)
+    else:
+        log_df.to_csv(LOG_FILE, index=False)
+
+    st.info("📄 Transaction logged successfully (Audit Trail)")
 
     # ------------------ SUMMARY CARDS ------------------
     st.subheader("📊 Transaction Summary")
@@ -146,12 +186,14 @@ if st.button("🔍 Predict Fraud Risk", use_container_width=True):
 
     # ------------------ FINAL DECISION ------------------
     st.divider()
-    st.subheader("🧠 Prediction Result")
+    st.subheader("🧠 Final Decision (Hybrid Engine)")
 
-    if prediction == 1:
-        st.error("⚠️ This transaction is **LIKELY FRAUDULENT**")
+    if "Fraud" in final_decision:
+        st.error(f"🚨 {final_decision}")
+    elif "Suspicious" in final_decision:
+        st.warning(f"🧐 {final_decision}")
     else:
-        st.success("✅ This transaction appears **LEGITIMATE**")
+        st.success("✅ Transaction Approved")
 
     # ------------------ EXPLANATION ------------------
     st.subheader("📌 Why this transaction was flagged")
