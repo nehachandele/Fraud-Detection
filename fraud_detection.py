@@ -256,11 +256,12 @@ if logs_df is not None:
         file_name="fraud_monitoring_report.csv",
         mime="text/csv"
     )
-
 st.divider()
 st.subheader("📈 Fraud Trend Analytics")
-if logs_df is not None:
 
+if logs_df is not None and not logs_df.empty:
+
+    # ---------- PREPROCESS ----------
     logs_df["Timestamp"] = pd.to_datetime(logs_df["Timestamp"])
     logs_df["Date"] = logs_df["Timestamp"].dt.date
     logs_df["Month"] = logs_df["Timestamp"].dt.to_period("M").astype(str)
@@ -269,37 +270,49 @@ if logs_df is not None:
         logs_df["Final Decision"].str.contains("Fraud", case=False)
     ]
 
-    # -------- DAILY FRAUD COUNT --------
-    daily_fraud = fraud_df.groupby("Date").size()
+    # ========= SINGLE COLUMN =========
+    # ========= SINGLE ROW (3 GRAPHS SIDE BY SIDE) =========
+    col1, col2, col3 = st.columns(3)
 
-    st.markdown("### 📅 Daily Fraud Transactions")
+# ---------- DAILY FRAUD ----------
+    with col1:
+        st.markdown("### 📅 Daily Fraud Trend")
 
-    fig1 = plt.figure()
-    daily_fraud.plot(kind="line", marker="o")
-    plt.xlabel("Date")
-    plt.ylabel("Fraud Count")
-    plt.xticks(rotation=45)
-    st.pyplot(fig1)
+        daily_fraud = fraud_df.groupby("Date").size()
 
-        # -------- MONTHLY FRAUD COUNT --------
-    monthly_fraud = fraud_df.groupby("Month").size()
+        fig1, ax1 = plt.subplots(figsize=(4, 3))
+        ax1.plot(daily_fraud.index, daily_fraud.values, marker="o")
+        ax1.set_ylabel("Count")
+        ax1.grid(alpha=0.3)
+        plt.xticks(rotation=45)
+        st.pyplot(fig1)
 
-    st.markdown("### 📆 Monthly Fraud Trend")
+# ---------- MONTHLY FRAUD ----------
+    with col2:
+        st.markdown("### 📆 Monthly Fraud Trend")
 
-    fig2 = plt.figure()
-    monthly_fraud.plot(kind="bar")
-    plt.xlabel("Month")
-    plt.ylabel("Fraud Count")
-    st.pyplot(fig2)
+        monthly_fraud = fraud_df.groupby("Month").size()
 
-    st.markdown("### 📊 Fraud vs Safe Transactions")
+        fig2, ax2 = plt.subplots(figsize=(4, 3))
+        ax2.bar(monthly_fraud.index, monthly_fraud.values)
+        ax2.set_ylabel("Count")
+        ax2.grid(axis="y", alpha=0.3)
+        st.pyplot(fig2)
 
-    decision_counts = logs_df["Final Decision"].apply(
+# ---------- FRAUD VS SAFE ----------
+    with col3:
+        st.markdown("### 📊 Fraud vs Safe")
+
+        decision_counts = logs_df["Final Decision"].apply(
         lambda x: "Fraud" if "Fraud" in x else "Safe"
-    ).value_counts()
+        ).value_counts()
 
-    fig3 = plt.figure()
-    decision_counts.plot(kind="bar")
-    plt.xlabel("Transaction Type")
-    plt.ylabel("Count")
-    st.pyplot(fig3)
+        fig3, ax3 = plt.subplots(figsize=(4, 3))
+        ax3.bar(decision_counts.index, decision_counts.values)
+        ax3.set_ylabel("Count")
+        ax3.grid(axis="y", alpha=0.3)
+        st.pyplot(fig3)
+
+
+else:
+    st.info("Not enough transaction data available for analytics.")
