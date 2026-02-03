@@ -217,7 +217,7 @@ if st.runtime.exists():
             daily = fraud_df.groupby("Date").size().sort_index()
 
             # Create figure
-            fig, ax = plt.subplots(figsize=(6,4))
+            fig, ax = plt.subplots(figsize=(5,4))
             ax.plot(daily.index, daily.values, marker="o", color="#ef4444", linewidth=2)
 
     # Titles and labels
@@ -227,7 +227,7 @@ if st.runtime.exists():
 
     # Format x-axis
             ax.xaxis.set_major_locator(MaxNLocator(nbins=6))
-            plt.xticks(rotation=90, ha="right", fontsize=8)
+            plt.xticks(rotation=0, ha="right", fontsize=8)
             plt.yticks(fontsize=8)
     
             plt.grid(True, linestyle='--', alpha=0.5)  # optional grid
