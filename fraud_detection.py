@@ -4,8 +4,9 @@ import joblib
 import os
 from datetime import datetime
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
-# ------------------ CONFIG ------------------
+# ================= CONFIG =================
 LOG_FILE = "transaction_logs.csv"
 
 st.set_page_config(
@@ -14,63 +15,67 @@ st.set_page_config(
     layout="wide"
 )
 
-# ------------------ LOAD MODEL ------------------
+# ================= LOAD MODEL =================
 model = joblib.load("fraud_detection_pipeline.pkl")
 
-# ------------------ CUSTOM CSS ------------------
+# ================= STYLING =================
 st.markdown("""
 <style>
 .card {
     background-color: #ffffff;
-    padding: 20px;
-    border-radius: 16px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    padding: 18px;
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
     text-align: center;
 }
 .card-title {
-    font-size: 14px;
+    font-size: 13px;
     color: #6b7280;
 }
 .card-value {
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 700;
-    margin-top: 6px;
 }
 .high-risk { color: #dc2626; }
 .medium-risk { color: #f59e0b; }
 .low-risk { color: #16a34a; }
+.admin-box {
+    background:#f9fafb;
+    padding:18px;
+    border-radius:14px;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ HEADER ------------------
+# ================= HEADER =================
 st.title("💳 Fraud Detection Prediction System")
-st.caption("AI-powered transaction analysis using ML + Rule Engine")
+st.caption("ML + Rule Engine · Real-Time Risk Analysis")
 st.divider()
 
-# ------------------ INPUT FORM ------------------
+# ================= INPUT =================
 st.subheader("🧾 Transaction Details")
 
-col1, col2 = st.columns(2)
+c1, c2 = st.columns(2)
 
-with col1:
+with c1:
     transaction_type = st.selectbox(
         "Transaction Type",
         ["PAYMENT", "TRANSFER", "CASH_OUT", "DEPOSIT"]
     )
-    amount = st.number_input("Transaction Amount (₹)", min_value=0.0, value=1000.0)
+    amount = st.number_input("Amount (₹)", min_value=0.0, value=1000.0)
     oldbalanceOrg = st.number_input("Sender Old Balance (₹)", min_value=0.0, value=10000.0)
 
-with col2:
+with c2:
     newbalanceOrig = st.number_input("Sender New Balance (₹)", min_value=0.0, value=9000.0)
-    oldbalanceDest = st.number_input("Receiver Old Balance (₹)", min_value=0.0, value=0.0)
-    newbalanceDest = st.number_input("Receiver New Balance (₹)", min_value=0.0, value=0.0)
+    oldbalanceDest = st.number_input("Receiver Old Balance (₹)", min_value=0.0)
+    newbalanceDest = st.number_input("Receiver New Balance (₹)", min_value=0.0)
 
 st.divider()
 
-# ------------------ PREDICTION ------------------
-if st.button("Predict Fraud Risk", use_container_width=True):
+# ================= PREDICTION =================
+if st.button("🔍 Analyze Transaction", use_container_width=True):
 
-    input_data = pd.DataFrame([{
+    input_df = pd.DataFrame([{
         "type": transaction_type,
         "amount": amount,
         "oldbalanceOrg": oldbalanceOrg,
@@ -79,55 +84,32 @@ if st.button("Predict Fraud Risk", use_container_width=True):
         "newbalanceDest": newbalanceDest
     }])
 
-    prediction = model.predict(input_data)[0]
-    probability = model.predict_proba(input_data)[0][1] * 100
+    prediction = model.predict(input_df)[0]
+    probability = model.predict_proba(input_df)[0][1] * 100
 
-    # ------------------ RISK LEVEL ------------------
+    # Risk Label
     if probability >= 80:
-        risk_label = "High Risk"
-        risk_class = "high-risk"
+        risk, cls = "High Risk", "high-risk"
     elif probability >= 40:
-        risk_label = "Medium Risk"
-        risk_class = "medium-risk"
+        risk, cls = "Medium Risk", "medium-risk"
     else:
-        risk_label = "Low Risk"
-        risk_class = "low-risk"
+        risk, cls = "Low Risk", "low-risk"
 
-    # ------------------ RULE-BASED EXPLANATION ------------------
-    reasons = []
-
-    if amount > 200000:
-        reasons.append("Unusually high transaction amount")
-
-    if oldbalanceOrg > 0 and newbalanceOrig == 0:
-        reasons.append("Sender balance completely drained")
-
-    if oldbalanceDest == 0 and newbalanceDest > 0:
-        reasons.append("Receiver had zero balance before transaction")
-
-    if transaction_type in ["TRANSFER", "CASH_OUT"] and amount > 100000:
-        reasons.append("High-risk transaction type with large amount")
-
-    if abs((oldbalanceOrg - newbalanceOrig) - amount) > 1:
-        reasons.append("Inconsistent balance change detected")
-
-    # ------------------ STEP 5: HYBRID DECISION ENGINE ------------------
+    # Hybrid Decision Engine
     if amount > 500000:
-        final_decision = "Fraud (Rule Override: Very High Amount)"
+        final_decision = "Fraud"
     elif oldbalanceOrg > 0 and newbalanceOrig == 0:
-        final_decision = "Fraud (Rule Override: Balance Drained)"
-    elif abs((oldbalanceOrg - newbalanceOrig) - amount) > 1:
-        final_decision = "Fraud (Rule Override: Balance Mismatch)"
+        final_decision = "Fraud"
     elif probability >= 75:
-        final_decision = "Fraud (ML Prediction)"
-    elif 40 <= probability < 75:
-        final_decision = "Suspicious (Manual Review Required)"
+        final_decision = "Fraud"
+    elif probability >= 40:
+        final_decision = "Suspicious"
     else:
         final_decision = "Safe"
 
-    # ------------------ TRANSACTION LOGGING ------------------
-    log_data = {
-        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    # Log Transaction
+    log = pd.DataFrame([{
+        "Timestamp": datetime.now(),
         "Transaction Type": transaction_type,
         "Amount": amount,
         "Old Balance Sender": oldbalanceOrg,
@@ -135,184 +117,157 @@ if st.button("Predict Fraud Risk", use_container_width=True):
         "Old Balance Receiver": oldbalanceDest,
         "New Balance Receiver": newbalanceDest,
         "Fraud Probability (%)": round(probability, 2),
-        "Risk Level": risk_label,
-        "ML Prediction": "Fraud" if prediction == 1 else "Not Fraud",
+        "Risk Level": risk,
+        "ML Prediction": "Fraud" if prediction == 1 else "Safe",
         "Final Decision": final_decision
-    }
+    }])
 
-    log_df = pd.DataFrame([log_data])
-    if os.path.exists(LOG_FILE):
-        log_df.to_csv(LOG_FILE, mode="a", header=False, index=False)
-    else:
-        log_df.to_csv(LOG_FILE, index=False)
+    log.to_csv(LOG_FILE, mode="a", header=not os.path.exists(LOG_FILE), index=False)
 
-    st.info("📄 Transaction logged successfully (Audit Trail)")
-
-    # ------------------ SUMMARY CARDS ------------------
+    # ================= SUMMARY =================
     st.subheader("📊 Transaction Summary")
 
-    c1, c2, c3, c4 = st.columns(4)
+    s1, s2, s3, s4 = st.columns(4)
 
-    with c1:
-        st.markdown(f"""
-        <div class="card">
-            <div class="card-title">Transaction Type</div>
-            <div class="card-value">{transaction_type}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    s1.markdown(f"<div class='card'><div class='card-title'>Type</div><div class='card-value'>{transaction_type}</div></div>", unsafe_allow_html=True)
+    s2.markdown(f"<div class='card'><div class='card-title'>Amount</div><div class='card-value'>₹{amount:,.0f}</div></div>", unsafe_allow_html=True)
+    s3.markdown(f"<div class='card'><div class='card-title'>Probability</div><div class='card-value {cls}'>{probability:.1f}%</div></div>", unsafe_allow_html=True)
+    s4.markdown(f"<div class='card'><div class='card-title'>Risk</div><div class='card-value {cls}'>{risk}</div></div>", unsafe_allow_html=True)
 
-    with c2:
-        st.markdown(f"""
-        <div class="card">
-            <div class="card-title">Amount</div>
-            <div class="card-value">₹{amount:,.0f}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with c3:
-        st.markdown(f"""
-        <div class="card">
-            <div class="card-title">Fraud Probability</div>
-            <div class="card-value {risk_class}">{probability:.2f}%</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with c4:
-        st.markdown(f"""
-        <div class="card">
-            <div class="card-title">Risk Level</div>
-            <div class="card-value {risk_class}">{risk_label}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # ------------------ FINAL DECISION ------------------
-    st.divider()
-    st.subheader("🧠 Final Decision (Hybrid Engine)")
-
-    if "Fraud" in final_decision:
-        st.error(f"🚨 {final_decision}")
-    elif "Suspicious" in final_decision:
-        st.warning(f"🧐 {final_decision}")
+    if final_decision == "Fraud":
+        st.error("🚨 Fraud Detected")
+    elif final_decision == "Suspicious":
+        st.warning("🧐 Suspicious Transaction")
     else:
         st.success("✅ Transaction Approved")
 
-    # ------------------ EXPLANATION ------------------
-    st.subheader("📌 Why this transaction was flagged")
-
-    if reasons:
-        for r in reasons:
-            st.warning(f"• {r}")
-    else:
-        st.info("No suspicious patterns detected by rule-based analysis")
-
-
+# ================= ADMIN PANEL =================
 st.divider()
-st.subheader("🧑‍💼 Admin Dashboard – Transaction Monitoring")
+st.markdown("## 🛡️ Admin Console")
+st.caption("Monitoring · Audit · Analytics")
+
+# Load logs for admin panel
 if os.path.exists(LOG_FILE):
     logs_df = pd.read_csv(LOG_FILE)
+    logs_df["Timestamp"] = pd.to_datetime(logs_df["Timestamp"], errors="coerce")
+    logs_df["Final Decision"] = logs_df["Final Decision"].str.strip()
 else:
-    st.warning("No transaction logs found yet.")
-    logs_df = None
+    logs_df = pd.DataFrame()
 
-if logs_df is not None:
+if not logs_df.empty:
+    with st.container():
+        st.markdown("<div class='admin-box'>", unsafe_allow_html=True)
 
-    col1, col2 = st.columns(2)
+        f1, f2, f3 = st.columns([2,2,1])
 
-    with col1:
-        decision_filter = st.selectbox(
-            "Filter by Final Decision",
-            ["All", "Fraud", "Suspicious", "Safe"]
-        )
+        with f1:
+            decision_filter = st.selectbox(
+                "Filter by Decision",
+                ["All", "Fraud", "Suspicious", "Safe"]
+            )
 
-    with col2:
-        min_prob = st.slider(
-            "Minimum Fraud Probability (%)",
-            0, 100, 40
-        )
+        with f2:
+            min_prob = st.slider("Minimum Fraud Probability (%)", 0, 100, 40)
 
-    filtered_df = logs_df.copy()
+        with f3:
+            st.metric("Total Records", len(logs_df))
 
-    if decision_filter != "All":
-        filtered_df = filtered_df[
-            filtered_df["Final Decision"].str.contains(decision_filter, case=False)
-        ]
+        df = logs_df.copy()
+        if decision_filter != "All":
+            df = df[df["Final Decision"] == decision_filter]
 
-    filtered_df = filtered_df[
-        filtered_df["Fraud Probability (%)"] >= min_prob
-    ]
+        df = df[df["Fraud Probability (%)"] >= min_prob]
 
-    st.markdown("### 📋 Flagged Transactions")
+        st.caption(f"Showing {len(df)} records")
+        st.dataframe(df, use_container_width=True, height=260)
 
-    st.dataframe(
-        filtered_df.sort_values("Fraud Probability (%)", ascending=False),
-        use_container_width=True
-    )
+        st.markdown("</div>", unsafe_allow_html=True)
+else:
+    st.info("📌 No transaction logs available yet.")
 
-    csv = filtered_df.to_csv(index=False).encode("utf-8")
-
-    st.download_button(
-        label="⬇️ Download Filtered Report",
-        data=csv,
-        file_name="fraud_monitoring_report.csv",
-        mime="text/csv"
-    )
+# ================= ANALYTICS =================
 st.divider()
 st.subheader("📈 Fraud Trend Analytics")
 
-if logs_df is not None and not logs_df.empty:
-
-    # ---------- PREPROCESS ----------
-    logs_df["Timestamp"] = pd.to_datetime(logs_df["Timestamp"])
-    logs_df["Date"] = logs_df["Timestamp"].dt.date
-    logs_df["Month"] = logs_df["Timestamp"].dt.to_period("M").astype(str)
-
-    fraud_df = logs_df[
-        logs_df["Final Decision"].str.contains("Fraud", case=False)
-    ]
-
-    # ========= SINGLE COLUMN =========
-    # ========= SINGLE ROW (3 GRAPHS SIDE BY SIDE) =========
-    col1, col2, col3 = st.columns(3)
-
-# ---------- DAILY FRAUD ----------
-    with col1:
-        st.markdown("### 📅 Daily Fraud Trend")
-
-        daily_fraud = fraud_df.groupby("Date").size()
-
-        fig1, ax1 = plt.subplots(figsize=(4, 3))
-        ax1.plot(daily_fraud.index, daily_fraud.values, marker="o")
-        ax1.set_ylabel("Count")
-        ax1.grid(alpha=0.3)
-        plt.xticks(rotation=45)
-        st.pyplot(fig1)
-
-# ---------- MONTHLY FRAUD ----------
-    with col2:
-        st.markdown("### 📆 Monthly Fraud Trend")
-
-        monthly_fraud = fraud_df.groupby("Month").size()
-
-        fig2, ax2 = plt.subplots(figsize=(4, 3))
-        ax2.bar(monthly_fraud.index, monthly_fraud.values)
-        ax2.set_ylabel("Count")
-        ax2.grid(axis="y", alpha=0.3)
-        st.pyplot(fig2)
-
-# ---------- FRAUD VS SAFE ----------
-    with col3:
-        st.markdown("### 📊 Fraud vs Safe")
-
-        decision_counts = logs_df["Final Decision"].apply(
-        lambda x: "Fraud" if "Fraud" in x else "Safe"
-        ).value_counts()
-
-        fig3, ax3 = plt.subplots(figsize=(4, 3))
-        ax3.bar(decision_counts.index, decision_counts.values)
-        ax3.set_ylabel("Count")
-        ax3.grid(axis="y", alpha=0.3)
-        st.pyplot(fig3)
-
-
+# Always read full logs from CSV for analytics
+if os.path.exists(LOG_FILE):
+    full_logs_df = pd.read_csv(LOG_FILE)
+    full_logs_df["Timestamp"] = pd.to_datetime(full_logs_df["Timestamp"], errors="coerce")
+    full_logs_df["Final Decision"] = full_logs_df["Final Decision"].str.strip()
+    full_logs_df["Date"] = full_logs_df["Timestamp"].dt.date
+    full_logs_df["Month"] = full_logs_df["Timestamp"].dt.to_period("M").astype(str)
+    fraud_df = full_logs_df[full_logs_df["Final Decision"].str.contains("Fraud", na=False)]
 else:
-    st.info("Not enough transaction data available for analytics.")
+    full_logs_df = pd.DataFrame()
+    fraud_df = pd.DataFrame()
+
+# Responsive columns: stacked on small screens
+if st.runtime.exists():
+    # Detect width (Streamlit doesn't provide exact screen width)
+    # We'll just use a simple 3-column layout for desktop, stacked on mobile automatically
+    g1, g2, g3 = st.columns([1,1,1], gap="medium")
+
+    # Daily Fraud
+    with g1:
+        st.caption("📅 Daily Fraud")
+        if not fraud_df.empty:
+            # Ensure Date is datetime
+            fraud_df["Date"] = pd.to_datetime(fraud_df["Date"])
+    
+            daily = fraud_df.groupby("Date").size().sort_index()
+
+            # Create figure
+            fig, ax = plt.subplots(figsize=(6,4))
+            ax.plot(daily.index, daily.values, marker="o", color="#ef4444", linewidth=2)
+
+    # Titles and labels
+            ax.set_title("Daily Fraud Count", fontsize=12)
+            ax.set_xlabel("Date", fontsize=10)
+            ax.set_ylabel("Count", fontsize=10)
+
+    # Format x-axis
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=6))
+            plt.xticks(rotation=90, ha="right", fontsize=8)
+            plt.yticks(fontsize=8)
+    
+            plt.grid(True, linestyle='--', alpha=0.5)  # optional grid
+            plt.tight_layout()
+            st.pyplot(fig)
+        else:
+            st.warning("No fraud data available")
+
+
+
+    # Monthly Fraud
+    with g2:
+        st.caption("📆 Monthly Fraud")
+        if not fraud_df.empty:
+            monthly = fraud_df.groupby("Month").size()
+            fig, ax = plt.subplots(figsize=(5,4))
+            ax.bar(monthly.index, monthly.values, color="#f59e0b")
+            ax.set_title("Monthly Fraud Count", fontsize=10)
+            ax.set_xlabel("Month", fontsize=8)
+            ax.set_ylabel("Count", fontsize=8)
+            plt.xticks(rotation=0, fontsize=8)
+            plt.yticks(fontsize=8)
+            plt.tight_layout()
+            st.pyplot(fig)
+        else:
+            st.warning("No fraud data available")
+
+    # Decision Distribution
+    with g3:
+        st.caption("📊 Decision Distribution")
+        if not full_logs_df.empty:
+            dist = full_logs_df["Final Decision"].value_counts()
+            fig, ax = plt.subplots(figsize=(5,4))
+            ax.bar(dist.index, dist.values, color="#16a34a")
+            ax.set_title("Decision Distribution", fontsize=10)
+            ax.set_xlabel("Decision", fontsize=8)
+            ax.set_ylabel("Count", fontsize=8)
+            plt.xticks(rotation=0, fontsize=8)
+            plt.yticks(fontsize=8)
+            plt.tight_layout()
+            st.pyplot(fig)
+        else:
+            st.warning("No transaction data available")
