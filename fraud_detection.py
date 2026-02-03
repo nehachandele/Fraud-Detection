@@ -3,6 +3,7 @@ import pandas as pd
 import joblib
 import os
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 # ------------------ CONFIG ------------------
 LOG_FILE = "transaction_logs.csv"
@@ -255,3 +256,50 @@ if logs_df is not None:
         file_name="fraud_monitoring_report.csv",
         mime="text/csv"
     )
+
+st.divider()
+st.subheader("📈 Fraud Trend Analytics")
+if logs_df is not None:
+
+    logs_df["Timestamp"] = pd.to_datetime(logs_df["Timestamp"])
+    logs_df["Date"] = logs_df["Timestamp"].dt.date
+    logs_df["Month"] = logs_df["Timestamp"].dt.to_period("M").astype(str)
+
+    fraud_df = logs_df[
+        logs_df["Final Decision"].str.contains("Fraud", case=False)
+    ]
+
+    # -------- DAILY FRAUD COUNT --------
+    daily_fraud = fraud_df.groupby("Date").size()
+
+    st.markdown("### 📅 Daily Fraud Transactions")
+
+    fig1 = plt.figure()
+    daily_fraud.plot(kind="line", marker="o")
+    plt.xlabel("Date")
+    plt.ylabel("Fraud Count")
+    plt.xticks(rotation=45)
+    st.pyplot(fig1)
+
+        # -------- MONTHLY FRAUD COUNT --------
+    monthly_fraud = fraud_df.groupby("Month").size()
+
+    st.markdown("### 📆 Monthly Fraud Trend")
+
+    fig2 = plt.figure()
+    monthly_fraud.plot(kind="bar")
+    plt.xlabel("Month")
+    plt.ylabel("Fraud Count")
+    st.pyplot(fig2)
+
+    st.markdown("### 📊 Fraud vs Safe Transactions")
+
+    decision_counts = logs_df["Final Decision"].apply(
+        lambda x: "Fraud" if "Fraud" in x else "Safe"
+    ).value_counts()
+
+    fig3 = plt.figure()
+    decision_counts.plot(kind="bar")
+    plt.xlabel("Transaction Type")
+    plt.ylabel("Count")
+    st.pyplot(fig3)
