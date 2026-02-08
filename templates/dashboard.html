@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --bg: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container { max-width: 1000px; margin: auto; }
+
+        /* Mode Switcher */
+        .tabs {
+            display: flex;
+            background: var(--card-bg);
+            padding: 5px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+
+        .tab.active { background: var(--primary); font-weight: bold; }
+
+        /* Form Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 16px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: white;
+            box-sizing: border-box;
+        }
+
+        .btn {
+            grid-column: span 2;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .btn:hover { opacity: 0.9; }
+
+        /* Results Section */
+        .risk-indicator {
+            text-align: center;
+            padding: 30px;
+            margin-top: 30px;
+            border-radius: 20px;
+            border: 2px dashed rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🛡️ Advanced Fraud Guard</h2>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="switchMode('banking')">Traditional Banking</div>
+            <div class="tab" onclick="switchMode('upi')">UPI Detection</div>
+        </div>
+
+        <div class="card">
+            <div class="grid" id="form-container">
+                </div>
+            <button class="btn" onclick="analyze()">🔍 Analyze Transaction</button>
+        </div>
+
+        <div id="result" class="risk-indicator" style="display:none;">
+            <h1 id="risk-level">LOW RISK</h1>
+            <p id="risk-desc">Transaction appears safe based on current patterns.</p>
+        </div>
+    </div>
+
+    <script>
+        function switchMode(mode) {
+            const container = document.getElementById('form-container');
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if(mode === 'banking') {
+                container.innerHTML = `
+                    <div><label>Amount (₹)</label><input type="number" id="amt" value="1000"></div>
+                    <div><label>Transaction Type</label>
+                        <select id="type"><option>PAYMENT</option><option>TRANSFER</option></select>
+                    </div>
+                    <div><label>Sender Balance</label><input type="number" id="sbal" value="5000"></div>
+                    <div><label>Receiver Balance</label><input type="number" id="rbal" value="0"></div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div><label>UPI ID (VPA)</label><input type="text" id="vpa" placeholder="user@okaxis"></div>
+                    <div><label>Device Status</label>
+                        <select id="device"><option>Trusted</option><option>New Device</option><option>Rooted</option></select>
+                    </div>
+                    <div><label>Request Type</label>
+                        <select id="req"><option>Push (Pay)</option><option>Pull (Collect)</option></select>
+                    </div>
+                    <div><label>Amount (₹)</label><input type="number" id="amt" value="500"></div>
+                `;
+            }
+        }
+        
+        // Initial load
+        switchMode('banking');
+
+        function analyze() {
+            // This function would send data to your Streamlit/Python backend
+            document.getElementById('result').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

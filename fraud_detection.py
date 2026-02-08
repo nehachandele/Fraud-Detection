@@ -5,6 +5,15 @@ import os
 from datetime import datetime
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
+import streamlit.components.v1 as components
+
+# Load the HTML file
+# To this:
+with open("templates/dashboard.html", "r", encoding="utf-8") as f:
+    html_code = f.read()
+
+# Render it in Streamlit
+components.html(html_code, height=800, scrolling=True)
 
 # ================= CONFIG =================
 LOG_FILE = "transaction_logs.csv"
